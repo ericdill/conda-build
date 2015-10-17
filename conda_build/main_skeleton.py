@@ -266,6 +266,10 @@ Network (CRAN) (cran.r-project.org).
         --output-dir).  If packages are given, they are updated; otherwise, all
         recipes in the output directory are updated.""",
     )
+    git = repos.add_parser(
+        "git",
+        help="Create recipe skeleton from a python source directory"
+    )
     p.set_defaults(func=execute)
 
     args = p.parse_args()
@@ -276,18 +280,21 @@ def execute(args, parser):
     import conda_build.pypi as pypi
     import conda_build.cpan as cpan
     import conda_build.cran as cran
+    import conda_build.git as git
+    repo_map = {
+        'pypi': pypi,
+        'cpan': cpan,
+        'cran': cran,
+        'git': git,
+    }
     from conda.lock import Locked
     from conda_build.config import config
 
-    if not args.repo:
-        parser.print_help()
     with Locked(config.croot):
-        if args.repo == "pypi":
-            pypi.main(args, parser)
-        elif args.repo == "cpan":
-            cpan.main(args, parser)
-        elif args.repo == 'cran':
-            cran.main(args, parser)
+        try:
+            repo_map[args.repo].main(args, parser)
+        except KeyError:
+            parser.print_help()
 
 if __name__ == '__main__':
     main()
