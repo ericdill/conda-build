@@ -9,6 +9,8 @@ import bz2
 import sys
 import json
 import tarfile
+import tempfile
+import shutil
 from os.path import isfile, join, getmtime
 
 from conda_build.utils import file_info, get_lock, try_acquire_locks
@@ -47,10 +49,19 @@ def write_repodata(repodata, dir_path, lock, config=None):
         # make sure we have newline at the end
         if not data.endswith('\n'):
             data += '\n'
-        with open(join(dir_path, 'repodata.json'), 'w') as fo:
+        # write to a temporary location
+        temp_dir = tempfile.mkdtemp(prefix='conda-index')
+        with open(join(temp_dir, 'repodata.json'), 'w') as fo:
             fo.write(data)
-        with open(join(dir_path, 'repodata.json.bz2'), 'wb') as fo:
+        with open(join(temp_dir, 'repodata.json.bz2'), 'wb') as fo:
             fo.write(bz2.compress(data.encode('utf-8')))
+        # then atomically move into the platform directory
+        shutil.move(join(temp_dir, 'repodata.json'),
+                    join(dir_path, 'repodata.json'))
+        shutil.move(join(temp_dir, 'repodata.json.bz2'),
+                    join(dir_path, 'repodata.bz2'))
+        # clean up after yourself
+        os.removedirs(temp_dir)
 
 
 def update_index(dir_path, config, force=False, check_md5=False, remove=True, lock=None,
